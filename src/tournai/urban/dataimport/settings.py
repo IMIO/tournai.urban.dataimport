@@ -3,11 +3,12 @@
 from imio.urban.dataimport.browser.controlpanel import ImporterControlPanel
 from imio.urban.dataimport.browser.import_panel import ImporterSettings
 from imio.urban.dataimport.browser.import_panel import ImporterSettingsForm
-from imio.urban.dataimport.excel.settings import ExcelImporterFromImportSettings
+from imio.urban.dataimport.csv.settings import CSVImporterFromImportSettings
 
 
 class TournaiImporterSettingsForm(ImporterSettingsForm):
     """ """
+
 
 class TournaiImporterSettings(ImporterSettings):
     """ """
@@ -19,7 +20,7 @@ class TournaiImporterControlPanel(ImporterControlPanel):
     import_form = TournaiImporterSettings
 
 
-class TournaiImporterFromImportSettings(ExcelImporterFromImportSettings):
+class TournaiImporterFromImportSettings(CSVImporterFromImportSettings):
     """ """
 
     def get_importer_settings(self):

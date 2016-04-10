@@ -11,4 +11,4 @@ class ITournaiUrbanDataimportLayer(IDefaultPloneLayer):
 
 
 class ITournaiDataImporter(IUrbanDataImporter):
-    """ Marker interface for ITournai excel importer """
+    """ Marker interface for ITournai importer """
