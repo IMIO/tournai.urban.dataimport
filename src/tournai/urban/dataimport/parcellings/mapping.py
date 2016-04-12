@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from tournai.urban.dataimport.parcellings.mappers import AuthorizationDateMapper
 from tournai.urban.dataimport.parcellings.mappers import DescriptionMapper
 from tournai.urban.dataimport.parcellings.mappers import LabelMapper
 from tournai.urban.dataimport.parcellings.mappers import ParcellingFactory
@@ -26,10 +27,6 @@ FIELDS_MAPPINGS = {
                     'to': 'id',
                 },
                 {
-                    'from': 'DATE_D',
-                    'to': 'authorizationDate',
-                },
-                {
                     'from': 'NBLOTS',
                     'to': 'numberOfParcels',
                 },
@@ -44,6 +41,11 @@ FIELDS_MAPPINGS = {
                     'RUE',
                 ),
                 'to': 'label',
+            },
+
+            AuthorizationDateMapper: {
+                'from': 'DATE_D',
+                'to': 'authorizationDate',
             },
 
             DescriptionMapper: {

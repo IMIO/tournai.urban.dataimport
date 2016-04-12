@@ -25,6 +25,22 @@ class LabelMapper(Mapper):
         return label
 
 
+class AuthorizationDateMapper(Mapper):
+
+    def mapAuthorizationdate(self, line):
+        date = self.getData('DATE_D')
+        if not date:
+            return date
+
+        split_date = date.split('/')
+        year = split_date[-1]
+        if year <= 16:
+            split_date[-1] = '20' + year
+        else:
+            split_date[-1] = '19' + year
+        return '/'.join(split_date)
+
+
 class DescriptionMapper(Mapper):
     def mapChangesdescription(self, line):
         description = ''
