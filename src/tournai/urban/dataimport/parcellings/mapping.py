@@ -2,6 +2,7 @@
 
 from tournai.urban.dataimport.parcellings.mappers import AuthorizationDateMapper
 from tournai.urban.dataimport.parcellings.mappers import DescriptionMapper
+from tournai.urban.dataimport.parcellings.mappers import IdMapper
 from tournai.urban.dataimport.parcellings.mappers import LabelMapper
 from tournai.urban.dataimport.parcellings.mappers import ParcellingFactory
 
@@ -23,14 +24,20 @@ FIELDS_MAPPINGS = {
         'mappers': {
             SimpleMapper: (
                 {
-                    'from': 'ID',
-                    'to': 'id',
-                },
-                {
                     'from': 'NBLOTS',
                     'to': 'numberOfParcels',
                 },
             ),
+
+            IdMapper: {
+                'from': (
+                    'ID',
+                    'CODE_COMMU',
+                    'REFDIREXT',
+                    'SOUSCOM',
+                ),
+                'to': 'id',
+            },
 
             LabelMapper: {
                 'from': (

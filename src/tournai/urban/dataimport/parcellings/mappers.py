@@ -3,6 +3,8 @@
 from imio.urban.dataimport.mapper import Mapper
 from imio.urban.dataimport.factory import BaseFactory
 
+from Products.CMFPlone.utils import normalizeString
+
 
 # Factory
 class ParcellingFactory(BaseFactory):
@@ -11,6 +13,18 @@ class ParcellingFactory(BaseFactory):
 
     def getPortalType(self, container, **kwargs):
         return 'ParcellingTerm'
+
+
+class IdMapper(Mapper):
+    def mapId(self, line):
+        parcel_id = '{ID}{part_1}{part_2}{part_3}'.format(
+            ID=self.getData('ID'),
+            part_1=self.getData('CODE_COMMU'),
+            part_2=self.getData('REFDIREXT'),
+            part_3=self.getData('SOUSCOM'),
+        )
+        parcel_id = normalizeString(parcel_id)
+        return parcel_id
 
 
 class LabelMapper(Mapper):
