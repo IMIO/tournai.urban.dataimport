@@ -4,7 +4,8 @@ import unicodedata
 import datetime
 
 from tournai.urban.dataimport.csv.utils import get_state_from_licences_dates, get_date_from_licences_dates, \
-    load_architects, load_geometers, load_notaries, load_parcellings
+    load_architects, load_geometers, load_notaries, load_parcellings, get_state_from_raw_conclusion, \
+    get_decision_from_raw_conclusion
 from imio.urban.dataimport.config import IMPORT_FOLDER_PATH
 
 from imio.urban.dataimport.exceptions import NoObjectToCreateException
@@ -47,19 +48,27 @@ class IdMapper(Mapper):
 
     def __init__(self, importer, args):
         super(IdMapper, self).__init__(importer, args)
-        load_architects()
-        load_geometers()
-        load_notaries()
-        load_parcellings()
+        # load_architects()
+        # load_geometers()
+        # load_notaries()
+        # load_parcellings()
 
     def mapId(self, line):
         return normalizeString(self.getData('id'))
+
+
+class ReferenceMapper(Mapper):
+    def mapReference(self, line):
+        object1 = self.getData('GENRE')
+        object2 = self.getData('DOSNUM')
+        return '%s - %s' % (object1, object2)
 
 
 class PortalTypeMapper(Mapper):
     def mapPortal_type(self, line):
         portal_type = 'BuildLicence'
         return portal_type
+
 
     def mapFoldercategory(self, line):
         foldercategory = 'uat'
@@ -75,9 +84,9 @@ class LicenceSubjectMapper(Mapper):
 
 class WorklocationMapper(Mapper):
     def mapWorklocations(self, line):
-        num = self.getData('AdresseTravauxNumero')
+        num = self.getData('BIENNUM')
         noisy_words = set(('d', 'du', 'de', 'des', 'le', 'la', 'les', 'à', ',', 'rues', 'terrain', 'terrains', 'garage', 'magasin', 'entrepôt'))
-        raw_street = self.getData('AdresseTravauxRue')
+        raw_street = self.getData('BIENADR')
         if raw_street.endswith(')'):
             raw_street = raw_street[:-5]
         street = cleanAndSplitWord(raw_street)
@@ -85,7 +94,7 @@ class WorklocationMapper(Mapper):
         if len(street_keywords) and street_keywords[-1] == 'or':
             street_keywords = street_keywords[:-1]
 
-        locality = self.getData('AdresseTravauxVille')
+        locality = self.getData('BIENCOM')
         street_keywords.extend(cleanAndSplitWord(locality))
 
         brains = self.catalog(portal_type='Street', Title=street_keywords)
@@ -108,14 +117,14 @@ class WorkTypeMapper(Mapper):
 
 class InquiryStartDateMapper(Mapper):
     def mapInvestigationstart(self, line):
-        date = self.getData('DateDebEnq')
+        date = self.getData('DATENQU1')
         date = date and DateTime(date) or None
         return date
 
 
 class InquiryEndDateMapper(Mapper):
     def mapInvestigationend(self, line):
-        date = self.getData('DateFinEnq')
+        date = self.getData('DATENQU3')
         date = date and DateTime(date) or None
         return date
 
@@ -281,11 +290,8 @@ class EnvRubricsMapper(Mapper):
 class CompletionStateMapper(PostCreationMapper):
     def map(self, line, plone_object):
         self.line = line
-        datePermis = self.getData('Date Permis')
-        dateRefus = self.getData('Date Refus')
-        datePermisRecours = self.getData('Date Permis sur recours')
-        dateRefusRecours = self.getData('Date Refus sur recours')
-        transition = get_state_from_licences_dates(datePermis, dateRefus, datePermisRecours, dateRefusRecours)
+        rawConclusion = self.getData('CONCLUSION')
+        transition = get_state_from_raw_conclusion(rawConclusion)
 
         if transition:
             api.content.transition(plone_object, transition)
@@ -337,7 +343,7 @@ class ContactFactory(BaseFactory):
 
 class ContactIdMapper(Mapper):
     def mapId(self, line):
-        name = '%s%s%s' % (self.getData('NomDemandeur1'), self.getData('PrenomDemandeur1'), self.getData('id'))
+        name = '%s%s%s' % (self.getData('DEMNOM'), self.getData('DEMPRE'), self.getData('id'))
         name = name.replace(' ', '').replace('-', '')
         return normalizeString(self.site.portal_urban.generateUniqueId(name))
 
@@ -462,14 +468,12 @@ class ParcelFactory(BaseFactory):
 
 class ParcelDataMapper(Mapper):
     def map(self, line, **kwargs):
-        section = self.getData('Parcelle1section', line).upper()
-        if len(section) > 0:
-            section = section[0]
-        remaining_reference = '%s %s' % (self.getData('Parcelle1numero', line), self.getData('Parcelle1numerosuite', line))
+        section = self.getData('CADSEC', line).upper()
+        remaining_reference = self.getData('CADNUM', line)
         if not remaining_reference:
             return []
         abbreviations = identify_parcel_abbreviations(remaining_reference)
-        division = '2ème division' if self.getData('AdresseTravauxVille', line) == u'Wauthier-Braine' else '1ère division'
+        division = self.getData('CADDIV', line)
         if not remaining_reference or not section:
             return []
         base_reference = parse_cadastral_reference(division + section + abbreviations[0])
@@ -480,25 +484,6 @@ class ParcelDataMapper(Mapper):
         for abbreviation in abbreviations[1:]:
             new_parcel = guess_cadastral_reference(base_reference, abbreviation)
             parcels.append(new_parcel)
-
-
-        section2 = self.getData('Parcelle2section', line).upper()
-        if section2 :
-            section2 = section2[0]
-            remaining_reference2 = '%s %s' % (self.getData('Parcelle2numero', line), self.getData('Parcelle2numerosuite', line))
-            if not remaining_reference2:
-                return []
-
-            abbreviations2 = identify_parcel_abbreviations(remaining_reference2)
-            if not remaining_reference2 or not section2:
-                return []
-            base_reference2 = parse_cadastral_reference(division + section2 + abbreviations2[0])
-
-            base_reference2 = CadastralReference(*base_reference2)
-
-            for abbreviation2 in abbreviations2[1:]:
-                new_parcel2 = guess_cadastral_reference(base_reference2, abbreviation2)
-                parcels.append(new_parcel2)
 
         return parcels
 
@@ -723,61 +708,59 @@ class DecisionEventIdMapper(Mapper):
         return 'decision-event'
 
 
-class DecisionEventDateMapper(Mapper):
+class DecisionDateMapper(Mapper):
     def mapDecisiondate(self, line):
-        datePermis = self.getData('Date Permis')
-        dateRefus = self.getData('Date Refus')
-        datePermisRecours = self.getData('Date Permis sur recours')
-        dateRefusRecours = self.getData('Date Refus sur recours')
-        date = get_date_from_licences_dates(datePermis, dateRefus, datePermisRecours, dateRefusRecours)
-        if not date:
-            self.logError(self, line, 'No decision date found')
-            raise NoObjectToCreateException
-        return date
+        dateDecision = self.getData('CEPU')
+
+        dateRegex = "^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[1,3-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$"
+
+        m = re.match(dateRegex, dateDecision)
+        if m:
+            return m.group(1)
 
 
 class DecisionEventDecisionMapper(Mapper):
     def mapDecision(self, line):
-        datePermis = self.getData('Date Permis')
-        dateRefus = self.getData('Date Refus')
-        datePermisRecours = self.getData('Date Permis sur recours')
-        dateRefusRecours = self.getData('Date Refus sur recours')
-        state = get_state_from_licences_dates(datePermis, dateRefus, datePermisRecours, dateRefusRecours)
-
-        if state == 'accept':
-            return u'Favorable'
-        elif state == 'refuse':
-            return u'Défavorable'
+        rawConclusion = self.getData('CONCLUSION')
+        return get_decision_from_raw_conclusion(rawConclusion)
 
 
+class DecisionEventDateMapper(Mapper):
+    def mapEventdate(self, line):
+        dateDecision = self.getData('CEPU')
 
-class DecisionEventTitleMapper(Mapper):
-    def mapTitle(self, line):
-        tutAutorisa = self.getData('TutAutorisa')
-        tutRefus = self.getData('TutRefus')
+        dateRegex = "^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[1,3-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$"
 
-        if tutAutorisa or tutRefus:
-            return u'Délivrance du permis par la tutelle (octroi ou refus)'
+        m = re.match(dateRegex, dateDecision)
+        if m:
+            return m.group(1)
 
+
+class DepositEventTypeMapper(Mapper):
+    def mapEventtype(self, line):
         licence = self.importer.current_containers_stack[-1]
         urban_tool = api.portal.get_tool('portal_urban')
-        eventtype_id = self.getValueMapping('eventtype_id_map')[licence.portal_type]['decision_event']
+        eventtype_id = self.getValueMapping('eventtype_id_map')[licence.portal_type]['deposit_event']
         config = urban_tool.getUrbanConfig(licence)
-        event_type = getattr(config.urbaneventtypes, eventtype_id)
-        return event_type.Title()
+        return getattr(config.urbaneventtypes, eventtype_id).UID()
 
 
-class DecisionEventNotificationDateMapper(Mapper):
+class DepositDateMapper(Mapper):
     def mapEventdate(self, line):
-        datePermis = self.getData('Date Permis')
-        dateRefus = self.getData('Date Refus')
-        datePermisRecours = self.getData('Date Permis sur recours')
-        dateRefusRecours = self.getData('Date Refus sur recours')
-        eventDate = get_date_from_licences_dates(datePermis, dateRefus, datePermisRecours, dateRefusRecours)
-        if eventDate:
-            return eventDate
+        dateDeposit = self.getData('DATEDEPO')
+        dateRegex = "^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[1,3-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$"
+
+        m = re.match(dateRegex, dateDeposit)
+        if m:
+            return m.group(1)
         else:
             raise NoObjectToCreateException
+
+
+class DepositEventIdMapper(Mapper):
+    def mapId(self, line):
+        return 'deposit'
+
 
 
 class CollegeReportTypeMapper(Mapper):

@@ -235,3 +235,29 @@ def create_parcel(parcelling, section1, num1, num1suite, division):
                                                     divisionCode=parcel_args['division'])
 
         return object_id
+
+
+def get_state_from_raw_conclusion(rawConclusion):
+
+    upperConclusion = rawConclusion.upper()
+
+    if 'REFUS' in upperConclusion or 'DEFAVORABLE' in upperConclusion:
+        return 'refuse'
+    elif 'AUTORISATION' in upperConclusion or 'FAVORABLE' in upperConclusion:
+        return 'accept'
+    elif 'RETIRE' in upperConclusion or 'ANNULE' in upperConclusion:
+        return 'retire'
+    else:
+        return ''
+
+
+def get_decision_from_raw_conclusion(rawConclusion):
+
+    upperConclusion = rawConclusion.upper()
+
+    if 'REFUS' in upperConclusion or 'DEFAVORABLE' in upperConclusion:
+        return u"Refusé"
+    elif 'AUTORISATION' in upperConclusion or 'FAVORABLE' in upperConclusion:
+        return u"Octroyé"
+    elif 'RETIRE' in upperConclusion or 'ANNULE' in upperConclusion:
+        return 'u"Annulé"'

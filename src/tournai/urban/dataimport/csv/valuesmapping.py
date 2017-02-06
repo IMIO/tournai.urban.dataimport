@@ -5,16 +5,16 @@ from imio.urban.dataimport.mapping import table
 VALUES_MAPS = {
 
     'eventtype_id_map': table({
-        'header'             : ['decision_event', 'college_report_event'],
-        'BuildLicence'       : ['delivrance-du-permis-octroi-ou-refus', 'rapport-du-college'],
-        'ParcelOutLicence'   : ['delivrance-du-permis-octroi-ou-refus', ''],
-        'Declaration'        : ['deliberation-college', ''],
-        'UrbanCertificateOne': ['octroi-cu1', ''],
-        'UrbanCertificateTwo': ['octroi-cu2', ''],
-        'MiscDemand'         : ['deliberation-college', ''],
-        'EnvClassOne'        : ['decision', ''],
-        'EnvClassTwo'        : ['desision', ''],
-        'EnvClassThree'      : ['acceptation-de-la-demande', ''],
+        'header'             : ['decision_event', 'college_report_event', 'deposit_event'],
+        'BuildLicence'       : ['delivrance-du-permis-octroi-ou-refus', 'rapport-du-college', 'deposit'],
+        'ParcelOutLicence'   : ['delivrance-du-permis-octroi-ou-refus', '', ''],
+        'Declaration'        : ['deliberation-college', '', ''],
+        'UrbanCertificateOne': ['octroi-cu1', '', ''],
+        'UrbanCertificateTwo': ['octroi-cu2', '', ''],
+        'MiscDemand'         : ['deliberation-college', '', ''],
+        'EnvClassOne'        : ['decision', '', ''],
+        'EnvClassTwo'        : ['desision', '', ''],
+        'EnvClassThree'      : ['acceptation-de-la-demande', '', ''],
     }),
 
     'solicitOpinionDictionary': {
@@ -57,6 +57,18 @@ VALUES_MAPS = {
            "zone forestière"                                                       : 'zf'                                           ,
            "zone forestière d'intérêt paysager"                                    : 'zone-forestiere-dinteret-paysager'            ,
            "zone non affectée"                                                     : 'zone-non-affectee'                            ,
+    },
+
+    'event_state_map': {
+        'BuildLicence': [u'Octroi du permis'],
+        'ParcelOutLicence': [u"octroi du permis d'urbanisation"],
+        'Article127': [u'Octroi du permis', u'OctroiPermis' , u'octroi permis'],
+        'NotaryLetter': '',
+        'UrbanCertificateOne': [u'CU1'],
+        'UrbanCertificateTwo': [u'CU2'],
+        'Declaration': [u'délivrance permis'],
+        'Division': [u'délivrance permis'],
+        'MiscDemand': [u'Délivrance autorisation'],
     },
 
 }

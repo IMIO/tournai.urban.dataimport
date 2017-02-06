@@ -8,9 +8,8 @@ OBJECTS_NESTING = [
         'LICENCE', [
             ('CONTACT', []),
             ('PARCEL', []),
-            # ('DEPOSIT EVENT 1', []),
+            ('DEPOSIT EVENT', []),
             ('DECISION EVENT', []),
-            ('COLLEGE REPORT EVENT', []),
             # ('DOCUMENTS', []),
         ],
     ),
@@ -24,18 +23,19 @@ FIELDS_MAPPINGS = {
         'mappers': {
             SimpleMapper: (
                 {
-                    'from': "Reference",
-                    'to': 'referenceDGATLP',
-                },
-                {
-                    'from': 'Objet',
+                    'from': 'DOSLIB',
                     'to': 'licenceSubject',
                 },
                 {
-                    'from': 'Delai annonce',
+                    'from': 'DELAI',
                     'to': 'annoncedDelay',
                 },
             ),
+
+            ReferenceMapper: {
+                'from': ('GENRE', 'DOSNUM'),
+                'to': 'referenceDGATLP',
+            },
 
             IdMapper: {
                 'from': 'id',
@@ -48,74 +48,35 @@ FIELDS_MAPPINGS = {
             },
 
             WorklocationMapper: {
-                'from': ('AdresseTravauxRue', 'AdresseTravauxNumero', 'AdresseTravauxBoite', 'AdresseTravauxVille'),
+                'from': ('BIENADR', 'BIENNUM', 'BIENCOD', 'BIENCOM'),
                 'to': 'workLocations',
             },
 
            ArchitectMapper: {
                'allowed_containers': ['BuildLicence'],
-               'from': ('Nom Architecte', 'Prenom Architecte', 'Societe Architecte'),
+               'from': ('ARCHNOM', 'ARCHADR', 'ARCHCOM'),
                'to': ('architects',)
            },
 
-            FolderZoneTableMapper: {
-               'from': ('Plan de Secteur 1', 'Plan de Secteur 2'),
-               'to': 'folderZone',
-           },
-
-
-
-            # WorkTypeMapper: {
-            #     'allowed_containers': ['BuildLicence', 'ParcelOutLicence'],
-            #     'from': 'Code_220+',
-            #     'to': 'workType',
-            # },
-
+           # TODO ask Tournai
+           #  FolderZoneTableMapper: {
+           #     'from': ('ZONEPS'),
+           #     'to': 'folderZone',
+           # },
+            # TODO ask Tournai
             InquiryStartDateMapper: {
                 'allowed_containers': ['BuildLicence', 'ParcelOutLicence', 'UrbanCertificateTwo'],
-                'from': 'DateDebEnq',
+                'from': 'DATENQU1',
                 'to': 'investigationStart',
             },
-
+            # TODO ask Tournai
             InquiryEndDateMapper: {
                 'allowed_containers': ['BuildLicence', 'ParcelOutLicence', 'UrbanCertificateTwo'],
-                'from': 'DateFinEnq',
+                'from': 'DATENQU3',
                 'to': 'investigationEnd',
             },
 
-            InvestigationReasonsMapper: {
-                'allowed_containers': ['BuildLicence', 'ParcelOutLicence', 'UrbanCertificateTwo'],
-                'from': ('ParticularitesEnq1', 'ParticularitesEnq2'),
-                'to': 'investigationReasons',
-            },
 
-            AskOpinionsMapper: {
-                'from': (),
-                'to': 'solicitOpinionsTo',
-            },
-
-            #
-            # InquiryReclamationNumbersMapper: {
-            #     'allowed_containers': ['BuildLicence', 'ParcelOutLicence', 'UrbanCertificateTwo'],
-            #     'from': 'NBRec',
-            #     'to': 'investigationWriteReclamationNumber',
-            # },
-            #
-            # InquiryArticlesMapper: {
-            #     'allowed_containers': ['BuildLicence', 'ParcelOutLicence', 'UrbanCertificateTwo'],
-            #     'from': 'Enquete',
-            #     'to': 'investigationArticles',
-            # },
-            #
-            # ObservationsMapper: {
-            #     'from': ('ParticularitesEnq1', 'ParticularitesEnq2'),
-            #     'to': 'description',
-            # },
-            #
-            # TechnicalConditionsMapper: {
-            #     'from': ('memo_Autorisation', 'memo_Autorisation2'),
-            #     'to': 'locationTechnicalConditions',
-            # },
 
 #            GeometricianMapper: {
 #                'allowed_containers': ['ParcelOutLicence'],
@@ -174,7 +135,7 @@ FIELDS_MAPPINGS = {
             # },
             #
             CompletionStateMapper: {
-                'from': ('Date Permis', 'Date Refus', 'Date Permis sur recours', 'Date Refus sur recours'),
+                'from': 'CONCLUSION',
                 'to': (),  # <- no field to fill, its the workflow state that has to be changed
             },
 
@@ -191,7 +152,7 @@ FIELDS_MAPPINGS = {
 
         'mappers': {
             ParcelDataMapper: {
-                'from': ('Parcelle1section', 'Parcelle1numero', 'Parcelle1numerosuite', 'Parcelle2section', 'Parcelle2numero', 'Parcelle2numerosuite', 'AdresseTravauxVille'),
+                'from': ('CADDIV', 'CADSEC', 'CADNUM'),
                 'to': (),
             },
         },
@@ -204,21 +165,25 @@ FIELDS_MAPPINGS = {
         'mappers': {
             SimpleMapper: (
                 {
-                    'from': 'NomDemandeur1',
+                    'from': 'DEMNOM',
                     'to': 'name1',
                 },
                 {
-                    'from': 'PrenomDemandeur1',
+                    'from': 'DEMPRE',
                     'to': 'name2',
                 },
                 {
-                    'from': ('AdresseDemandeur1'),
+                    'from': ('DEMADR'),
                     'to': 'street',
+                },
+                {
+                    'from': ('DEMCOM'),
+                    'to': 'locality',
                 },
             ),
 
             ContactIdMapper: {
-                'from': ('NomDemandeur1', 'PrenomDemandeur1', 'id'),
+                'from': ('DEMNOM', 'DEMPRE', 'id'),
                 'to': 'id',
             },
         },
@@ -239,22 +204,52 @@ FIELDS_MAPPINGS = {
                 'to': 'id',
             },
 
+            DecisionDateMapper: {
+                'from': 'CEPU',
+                'to': 'eventDate',
+            },
+
             DecisionEventDateMapper: {
-                'from': ('Date Permis', 'Date Refus', 'Date Permis sur recours', 'Date Refus sur recours'),
+                'from': 'CEPU',
                 'to': 'decisionDate',
             },
 
             DecisionEventDecisionMapper: {
-                'from': ('Date Permis', 'Date Refus', 'Date Permis sur recours', 'Date Refus sur recours'),
+                'from': 'CONCLUSION',
                 'to': 'decision',
             },
 
-            DecisionEventNotificationDateMapper: {
-                'from': ('Date Permis', 'Date Refus', 'Date Permis sur recours', 'Date Refus sur recours'),
-                'to': 'eventDate',
+            SimpleMapper: {
+                'from': 'CONCLUSION',
+                'to': 'decisionText',
             }
+
         },
     },
+
+    'DEPOSIT EVENT':
+        {
+            'factory': [UrbanEventFactory],
+
+            'mappers': {
+                DepositEventTypeMapper: {
+                    'from': (),
+                    'to': 'eventtype',
+                },
+
+                DepositEventIdMapper: {
+                    'from': (),
+                    'to': 'id',
+                },
+
+                DepositDateMapper: {
+                    'from': 'CEPU',
+                    'to': 'eventDate',
+                },
+
+
+            },
+        },
 
     'COLLEGE REPORT EVENT':
     {
