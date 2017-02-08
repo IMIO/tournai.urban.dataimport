@@ -5,7 +5,7 @@ import datetime
 
 from tournai.urban.dataimport.csv.utils import get_state_from_licences_dates, get_date_from_licences_dates, \
     load_architects, load_geometers, load_notaries, load_parcellings, get_state_from_raw_conclusion, \
-    get_decision_from_raw_conclusion
+    get_decision_from_raw_conclusion, get_custom_event, convertToUnicode, get_point_and_digits, convertToAscii
 from imio.urban.dataimport.config import IMPORT_FOLDER_PATH
 
 from imio.urban.dataimport.exceptions import NoObjectToCreateException
@@ -59,6 +59,15 @@ class IdMapper(Mapper):
 
 class ReferenceMapper(Mapper):
     def mapReference(self, line):
+        title = 'ARCHIVE'
+        object1 = self.getData('GENRE')
+        object2 = self.getData('ANNEE')
+        object3 = self.getData('DOSNUM')
+        return '%s %s - %s - %s' % (title, object1, object2, object3)
+
+
+class ReferenceDGATLPMapper(Mapper):
+    def mapReferencedgatlp(self, line):
         object1 = self.getData('GENRE')
         object2 = self.getData('DOSNUM')
         return '%s - %s' % (object1, object2)
@@ -66,20 +75,37 @@ class ReferenceMapper(Mapper):
 
 class PortalTypeMapper(Mapper):
     def mapPortal_type(self, line):
-        portal_type = 'BuildLicence'
+        genre = self.getData('GENRE', line)
+        if genre:
+            if genre.startswith('PB') or genre.startswith('PU'):
+                portal_type = 'BuildLicence'
+            elif genre.startswith('CL3') or genre.startswith('SEI'):
+                portal_type = 'EnvClassThree'
+            elif genre.startswith('CU'):
+                portal_type = 'UrbanCertificateOne'
+            elif genre.startswith('DIV') :
+                portal_type = 'Division'
+            elif genre.startswith('DU'):
+                portal_type = 'Declaration'
+            elif genre.startswith('ECI') or genre.startswith('PE'):
+                portal_type = 'EnvClassTwo'
+            elif genre.startswith('INF') or genre.startswith('PEU') or \
+                genre.startswith('PSE') or genre.startswith('SAR') or \
+                genre.startswith('ASS') or genre.startswith('CP') or \
+                genre.startswith('DF') or genre.startswith('PIC') or \
+                genre.startswith('PI') or genre.startswith('PSE'):
+                 portal_type = 'MiscDemand'
+            else:
+                raise NoObjectToCreateException
+        else:
+            raise NoObjectToCreateException
+
         return portal_type
 
 
     def mapFoldercategory(self, line):
         foldercategory = 'uat'
         return foldercategory
-
-
-class LicenceSubjectMapper(Mapper):
-    def mapLicencesubject(self, line):
-        object1 = self.getData('Genre de Travaux')
-        object2 = self.getData('Divers')
-        return '%s %s' % (object1, object2)
 
 
 class WorklocationMapper(Mapper):
@@ -102,7 +128,7 @@ class WorklocationMapper(Mapper):
             return ({'street': brains[0].UID, 'number': num},)
         if street:
             self.logError(self, line, 'Couldnt find street or found too much streets', {
-                'address': '%s, %s, $s ' % (num, raw_street, locality),
+                'address': '%s, %s, %s ' % (num, raw_street, locality),
                 'street': street_keywords,
                 'search result': len(brains)
             })
@@ -118,15 +144,19 @@ class WorkTypeMapper(Mapper):
 class InquiryStartDateMapper(Mapper):
     def mapInvestigationstart(self, line):
         date = self.getData('DATENQU1')
-        date = date and DateTime(date) or None
-        return date
+        try:
+            return datetime.datetime.strptime(date, "%d/%m/%Y")
+        except ValueError:
+            return None
 
 
 class InquiryEndDateMapper(Mapper):
     def mapInvestigationend(self, line):
         date = self.getData('DATENQU3')
-        date = date and DateTime(date) or None
-        return date
+        try:
+            return datetime.datetime.strptime(date, "%d/%m/%Y")
+        except ValueError:
+            return None
 
 class InvestigationReasonsMapper(Mapper):
     def mapInvestigationreasons(self, line):
@@ -196,7 +226,7 @@ class TechnicalConditionsMapper(Mapper):
 
 class ArchitectMapper(PostCreationMapper):
     def mapArchitects(self, line, plone_object):
-        archi_name = '%s %s %s' % (self.getData('Nom Architecte'), self.getData('Prenom Architecte'), self.getData('Societe Architecte'))
+        archi_name = '%s %s %s' % (self.getData('ARCHNOM'), self.getData('ARCHADR'), self.getData('ARCHCOM'))
         fullname = cleanAndSplitWord(archi_name)
         if not fullname:
             return []
@@ -216,6 +246,58 @@ class ArchitectMapper(PostCreationMapper):
                       })
         return []
 
+
+class FolderManagerMapper(Mapper):
+    def mapFoldermanagers(self, line):
+        foldermanagers = []
+        foldermanagers_raw = self.getData('AGENT')
+        if foldermanagers_raw:
+            for fm in foldermanagers_raw.split("/"):
+                fm_tosearch = self.getValueMapping('foldermanager_map')[fm]
+                if fm_tosearch:
+                    foldermanager = self.catalog(portal_type='FolderManager', Title=fm_tosearch)
+                    if len(foldermanager) == 1:
+                        foldermanagers.append(foldermanager[0].getObject().UID())
+                    elif len(foldermanager) == 0:
+                        self.logError(self, line, 'internship found',
+                                      {
+                                          'foldermanager': foldermanagers_raw,
+                                      })
+            if foldermanagers_raw == 'MV':
+                self.logError(self, line, 'internship found',
+                              {
+                                  'raw_name': 'MV',
+                                  'name': 'Mathieu stagiaire',
+                          })
+        return foldermanagers
+
+
+class RubricsMapper(Mapper):
+
+    def mapRubrics(self, line):
+        rubric_list = []
+        rubric_raw = self.getData('RUBRIQUES')
+        if rubric_raw:
+            rubric_raw.replace("//", "/")
+            rubrics = rubric_raw.split("/")
+            if rubrics:
+                for rubric in rubrics:
+                    point_and_digits = get_point_and_digits(rubric)
+                    if point_and_digits and '.' in point_and_digits:
+                        catalog = api.portal.get_tool('portal_catalog')
+                        rubric_uids = [brain.UID for brain in catalog(portal_type='EnvironmentRubricTerm', id=point_and_digits)]
+                        if not rubric_uids:
+                                with open("matchRubricsError.csv", "a") as file:
+                                    file.write(point_and_digits + "\n")
+                                self.logError(self, line, 'No rubric found',
+                                              {
+                                                  'rubric': point_and_digits,
+                                              })
+                        else:
+                            rubric_list.append(rubric_uids[0])
+
+
+        return rubric_list
 
 class FolderZoneTableMapper(Mapper):
     def mapFolderzone(self, line):
@@ -321,9 +403,16 @@ class ErrorsMapper(FinalMapper):
                     error_trace.append('<p>lotissement : %s %s, autorisé le %s</p>' % (data['approval date'], data['city'], data['auth_date']))
                 elif 'article' in error.message.lower():
                     error_trace.append('<p>Articles de l\'enquête : %s</p>' % (data['articles']))
+                elif 'foldermanager' in error.message.lower():
+                    error_trace.append('<p>Articles de l\'enquête : %s</p>' % (data['foldermanager']))
+                elif 'rubric' in error.message.lower():
+                    error_trace.append('<p>Rubrique non trouvée : %s</p>' % (data['rubric']))
+                elif 'internship' in error.message.lower():
+                            error_trace.append('<p>Encodé par le stagiaire Mathieu V</p>')
         error_trace = ''.join(error_trace)
 
         return '%s%s' % (error_trace, description)
+
 
 #
 # CONTACT
@@ -334,7 +423,7 @@ class ErrorsMapper(FinalMapper):
 
 class ContactFactory(BaseFactory):
     def getPortalType(self, container, **kwargs):
-        if container.portal_type in ['UrbanCertificateOne', 'UrbanCertificateTwo', 'NotaryLetter']:
+        if container.portal_type in ['UrbanCertificateOne', 'UrbanCertificateTwo', 'Division']:
             return 'Proprietary'
         return 'Applicant'
 
@@ -473,8 +562,11 @@ class ParcelDataMapper(Mapper):
         if not remaining_reference:
             return []
         abbreviations = identify_parcel_abbreviations(remaining_reference)
-        division = self.getData('CADDIV', line)
-        if not remaining_reference or not section:
+        if self.getData('CADDIV', line):
+            division_map = self.getValueMapping('division_map')
+            division = division_map.get(self.getData('CADDIV', line))
+
+        if not remaining_reference or not section or not division:
             return []
         base_reference = parse_cadastral_reference(division + section + abbreviations[0])
 
@@ -699,6 +791,11 @@ class DecisionEventTypeMapper(Mapper):
         licence = self.importer.current_containers_stack[-1]
         urban_tool = api.portal.get_tool('portal_urban')
         eventtype_id = self.getValueMapping('eventtype_id_map')[licence.portal_type]['decision_event']
+        if eventtype_id == 'custom':
+            eventtype_id = get_custom_event(self.getData('CONCLUSION'), licence.portal_type)
+            if not eventtype_id:
+                raise NoObjectToCreateException
+
         config = urban_tool.getUrbanConfig(licence)
         return getattr(config.urbaneventtypes, eventtype_id).UID()
 
@@ -711,29 +808,41 @@ class DecisionEventIdMapper(Mapper):
 class DecisionDateMapper(Mapper):
     def mapDecisiondate(self, line):
         dateDecision = self.getData('CEPU')
-
-        dateRegex = "^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[1,3-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$"
-
-        m = re.match(dateRegex, dateDecision)
-        if m:
-            return m.group(1)
+        if not dateDecision:
+            raise NoObjectToCreateException
+        try:
+            datetime.datetime.strptime(dateDecision, "%d/%m/%Y")
+            return dateDecision
+        except ValueError:
+            raise NoObjectToCreateException
 
 
 class DecisionEventDecisionMapper(Mapper):
     def mapDecision(self, line):
         rawConclusion = self.getData('CONCLUSION')
-        return get_decision_from_raw_conclusion(rawConclusion)
+        decision = get_decision_from_raw_conclusion(rawConclusion)
+        if decision:
+            return decision
+        else:
+            raise NoObjectToCreateException
+
+
+class DecisionTextMapper(Mapper):
+    def mapDecisiontext(self, line):
+        details = self.getData('CONCLUSION')
+        if details:
+            textarea_details = u"<span>" + convertToUnicode(details) + u"</span>"
+            return textarea_details
 
 
 class DecisionEventDateMapper(Mapper):
     def mapEventdate(self, line):
-        dateDecision = self.getData('CEPU')
-
-        dateRegex = "^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[1,3-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$"
-
-        m = re.match(dateRegex, dateDecision)
-        if m:
-            return m.group(1)
+        dateDecisionNotif = self.getData('CEPU')
+        try:
+            datetime.datetime.strptime(dateDecisionNotif, "%d/%m/%Y")
+            return dateDecisionNotif
+        except ValueError:
+            raise NoObjectToCreateException
 
 
 class DepositEventTypeMapper(Mapper):
@@ -748,12 +857,10 @@ class DepositEventTypeMapper(Mapper):
 class DepositDateMapper(Mapper):
     def mapEventdate(self, line):
         dateDeposit = self.getData('DATEDEPO')
-        dateRegex = "^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[1,3-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$"
-
-        m = re.match(dateRegex, dateDeposit)
-        if m:
-            return m.group(1)
-        else:
+        try:
+            datetime.datetime.strptime(dateDeposit, "%d/%m/%Y")
+            return dateDeposit
+        except ValueError:
             raise NoObjectToCreateException
 
 

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import csv
+
+import unicodedata
 from plone.i18n.normalizer import idnormalizer
 from plone import api
 
@@ -256,8 +258,51 @@ def get_decision_from_raw_conclusion(rawConclusion):
     upperConclusion = rawConclusion.upper()
 
     if 'REFUS' in upperConclusion or 'DEFAVORABLE' in upperConclusion:
-        return u"Refusé"
-    elif 'AUTORISATION' in upperConclusion or 'FAVORABLE' in upperConclusion:
-        return u"Octroyé"
-    elif 'RETIRE' in upperConclusion or 'ANNULE' in upperConclusion:
-        return 'u"Annulé"'
+        return u"defavorable"
+    elif 'AUTORISATION' in upperConclusion or 'FAVORABLE' in upperConclusion or 'APPROUVE' in upperConclusion or 'COMPLET' in upperConclusion:
+        return u"favorable"
+    # elif 'RETIRE' in upperConclusion or 'ANNULE' in upperConclusion:
+    #     return 'u"Annulé"'
+
+def get_custom_event(rawConclusion, type):
+
+    upperConclusion = rawConclusion.upper()
+
+    if type == 'EnvClassThree':
+        if 'IRRECEVABLE' in upperConclusion:
+            return "refus-de-la-demande"
+    elif type == 'EnvClassTwo':
+        if 'AUTORISATION PARTIELLE' in upperConclusion:
+            return "decision"
+        elif 'AUTORISATION' in upperConclusion:
+            return "decision"
+        elif 'REFUS' in upperConclusion or 'ANNULE' in upperConclusion or 'RETIRE' in upperConclusion:
+            return "decision-pour-refus"
+
+
+def convertToUnicode(string):
+
+    if isinstance(string, unicode):
+        return string
+
+    # convert to unicode if necessary, against iso-8859-1 : iso-8859-15 add € and oe characters
+    data = ""
+    if string and isinstance(string, str):
+        try:
+            data = unicodedata.normalize('NFKC', unicode(string, "iso-8859-15"))
+        except UnicodeDecodeError:
+            import ipdb; ipdb.set_trace() # TODO REMOVE BREAKPOINT
+    return data
+
+def get_point_and_digits(string):
+
+    return ''.join([letter for letter in string if (letter.isdigit() or letter == '.')]).strip()
+
+
+def convertToAscii(unicodeString, mode):
+
+    if not isinstance(unicodeString, unicode) or mode != 'replace' and mode != 'ignore':
+        raise ValueError
+
+    # convert to ascii, unknown characters are set to '?'/replace mode, ''/ignore mode
+    return unicodeString.encode('ascii', mode)

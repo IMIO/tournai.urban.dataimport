@@ -32,9 +32,14 @@ FIELDS_MAPPINGS = {
                 },
             ),
 
-            ReferenceMapper: {
+            ReferenceDGATLPMapper: {
                 'from': ('GENRE', 'DOSNUM'),
                 'to': 'referenceDGATLP',
+            },
+
+            ReferenceMapper: {
+                'from': ('DOSNUM','ANNEE','GENRE'),
+                'to': 'reference',
             },
 
             IdMapper: {
@@ -43,7 +48,7 @@ FIELDS_MAPPINGS = {
             },
 
             PortalTypeMapper: {
-                'from': 'Type',
+                'from': 'GENRE',
                 'to': ('portal_type', 'folderCategory',)
             },
 
@@ -58,25 +63,33 @@ FIELDS_MAPPINGS = {
                'to': ('architects',)
            },
 
+           FolderManagerMapper: {
+               'from': 'AGENT',
+               'to': 'foldermanagers',
+           },
+
+
+
            # TODO ask Tournai
            #  FolderZoneTableMapper: {
            #     'from': ('ZONEPS'),
            #     'to': 'folderZone',
            # },
-            # TODO ask Tournai
             InquiryStartDateMapper: {
                 'allowed_containers': ['BuildLicence', 'ParcelOutLicence', 'UrbanCertificateTwo'],
                 'from': 'DATENQU1',
                 'to': 'investigationStart',
             },
-            # TODO ask Tournai
             InquiryEndDateMapper: {
                 'allowed_containers': ['BuildLicence', 'ParcelOutLicence', 'UrbanCertificateTwo'],
                 'from': 'DATENQU3',
                 'to': 'investigationEnd',
             },
 
-
+            RubricsMapper: {
+                'from': 'RUBRIQUES',
+                'to': 'rubrics'
+            },
 
 #            GeometricianMapper: {
 #                'allowed_containers': ['ParcelOutLicence'],
@@ -180,6 +193,10 @@ FIELDS_MAPPINGS = {
                     'from': ('DEMCOM'),
                     'to': 'locality',
                 },
+                {
+                    'from': 'TITREA',
+                    'to': 'personTitle',
+                },
             ),
 
             ContactIdMapper: {
@@ -192,6 +209,7 @@ FIELDS_MAPPINGS = {
     'DECISION EVENT':
     {
         'factory': [UrbanEventFactory],
+        'allowed_containers': ['BuildLicence', 'Declaration', 'Division', 'UrbanCertificateOne', 'MiscDemand'],
 
         'mappers': {
             DecisionEventTypeMapper: {
@@ -206,12 +224,12 @@ FIELDS_MAPPINGS = {
 
             DecisionDateMapper: {
                 'from': 'CEPU',
-                'to': 'eventDate',
+                'to': 'decisionDate',
             },
 
             DecisionEventDateMapper: {
                 'from': 'CEPU',
-                'to': 'decisionDate',
+                'to': 'eventDate',
             },
 
             DecisionEventDecisionMapper: {
@@ -219,11 +237,10 @@ FIELDS_MAPPINGS = {
                 'to': 'decision',
             },
 
-            SimpleMapper: {
+            DecisionTextMapper: {
                 'from': 'CONCLUSION',
                 'to': 'decisionText',
             }
-
         },
     },
 
@@ -243,7 +260,7 @@ FIELDS_MAPPINGS = {
                 },
 
                 DepositDateMapper: {
-                    'from': 'CEPU',
+                    'from': 'DATEDEPO',
                     'to': 'eventDate',
                 },
 
