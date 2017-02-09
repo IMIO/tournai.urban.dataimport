@@ -10,7 +10,7 @@ OBJECTS_NESTING = [
             ('PARCEL', []),
             ('DEPOSIT EVENT', []),
             ('DECISION EVENT', []),
-            # ('DOCUMENTS', []),
+            ('DOCUMENTS', []),
         ],
     ),
 ]
@@ -38,7 +38,7 @@ FIELDS_MAPPINGS = {
             },
 
             ReferenceMapper: {
-                'from': ('DOSNUM','ANNEE','GENRE'),
+                'from': ('DOSNUM', 'ANNEE', 'GENRE'),
                 'to': 'reference',
             },
 
@@ -287,6 +287,26 @@ FIELDS_MAPPINGS = {
                 'from': ('Rapport du College'),
                 'to': 'eventDate',
             }
+        },
+    },
+
+    'DOCUMENTS':
+    {
+        'factory': [DocumentsFactory],
+
+        'mappers': {
+            DocumentTitleMapper: {
+                'from': ('CADDIV', 'CADSEC', 'CADNUM'),
+                'to': 'title',
+            },
+            DocumentIdMapper: {
+                'from': ('CADDIV', 'CADSEC', 'CADNUM'),
+                'to': 'id',
+            },
+            DocumentFileMapper: {
+                'from': ('CADDIV', 'CADSEC', 'CADNUM'),
+                'to': 'file',
+                    },
         },
     },
 }

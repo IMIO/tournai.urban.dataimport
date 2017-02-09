@@ -253,13 +253,14 @@ class FolderManagerMapper(Mapper):
         foldermanagers_raw = self.getData('AGENT')
         if foldermanagers_raw:
             for fm in foldermanagers_raw.split("/"):
+                fm = fm.strip()
                 fm_tosearch = self.getValueMapping('foldermanager_map')[fm]
                 if fm_tosearch:
                     foldermanager = self.catalog(portal_type='FolderManager', Title=fm_tosearch)
                     if len(foldermanager) == 1:
                         foldermanagers.append(foldermanager[0].getObject().UID())
                     elif len(foldermanager) == 0:
-                        self.logError(self, line, 'internship found',
+                        self.logError(self, line, 'foldermanager not found',
                                       {
                                           'foldermanager': foldermanagers_raw,
                                       })
@@ -298,6 +299,59 @@ class RubricsMapper(Mapper):
 
 
         return rubric_list
+
+
+class DocumentIdMapper(Mapper):
+    def mapId(self, line):
+        doc_id = self.getData('CADDIV') + self.getData('CADSEC') + self.getData('CADNUM')
+        if not doc_id or '?' in doc_id:
+            raise NoObjectToCreateException
+        # doc_id = document_path.split('\\')[-1]
+        doc_id = idnormalizer.normalize(doc_id)
+        return doc_id
+
+
+class DocumentTitleMapper(Mapper):
+    def mapTitle(self, line):
+        doc_id = self.getData('CADDIV') + self.getData('CADSEC') + self.getData('CADNUM')
+        if not doc_id or '?' in doc_id:
+            raise NoObjectToCreateException
+        # doc_id = document_path.split('\\')[-1]
+        doc_id = idnormalizer.normalize(doc_id)
+        return doc_id
+
+
+class DocumentFileMapper(Mapper):
+    def mapFile(self, line):
+        if self.getData('CADDIV') and self.getData('CADSEC') and self.getData('CADNUM'):
+            div = self.getData('CADDIV')
+            sec = self.getData('CADSEC')
+            num = self.getData('CADNUM')
+            if  '?' in div or '?' in sec or '?' in num:
+                raise NoObjectToCreateException
+            if len(div) == 1:
+                div = '0' + div
+            if len(sec) != 1:
+                sec = sec[0]
+            document_path = "01E11b.doc"
+            document_path = '{base}/documents/{rel_path}'.format(
+                base=IMPORT_FOLDER_PATH,
+                rel_path=document_path[12:].replace('\\', '/') + document_path
+            )
+            try:
+                doc = open(document_path, 'rb')
+            except:
+                print "COULD NOT FIND DOCUMENT {}".format(document_path)
+                with open("documentnotfound.csv", "a") as file:
+                    file.write(document_path + "\n")
+                raise NoObjectToCreateException
+            doc_content = doc.read()
+            doc.close()
+            return doc_content
+
+        else:
+            raise NoObjectToCreateException
+
 
 class FolderZoneTableMapper(Mapper):
     def mapFolderzone(self, line):
@@ -404,7 +458,7 @@ class ErrorsMapper(FinalMapper):
                 elif 'article' in error.message.lower():
                     error_trace.append('<p>Articles de l\'enquête : %s</p>' % (data['articles']))
                 elif 'foldermanager' in error.message.lower():
-                    error_trace.append('<p>Articles de l\'enquête : %s</p>' % (data['foldermanager']))
+                    error_trace.append('<p>Agent : %s</p>' % (data['foldermanager']))
                 elif 'rubric' in error.message.lower():
                     error_trace.append('<p>Rubrique non trouvée : %s</p>' % (data['rubric']))
                 elif 'internship' in error.message.lower():
