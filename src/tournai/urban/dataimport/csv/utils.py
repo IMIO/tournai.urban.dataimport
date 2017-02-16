@@ -259,7 +259,7 @@ def get_decision_from_raw_conclusion(rawConclusion):
 
     if 'REFUS' in upperConclusion or 'DEFAVORABLE' in upperConclusion:
         return u"defavorable"
-    elif 'AUTORISATION' in upperConclusion or 'FAVORABLE' in upperConclusion or 'APPROUVE' in upperConclusion or 'COMPLET' in upperConclusion:
+    elif 'AUTORISATION' in upperConclusion or 'FAVORABLE' in upperConclusion or 'APPROUVE' in upperConclusion:
         return u"favorable"
     # elif 'RETIRE' in upperConclusion or 'ANNULE' in upperConclusion:
     #     return 'u"Annulé"'
@@ -279,6 +279,24 @@ def get_custom_event(rawConclusion, type):
         elif 'REFUS' in upperConclusion or 'ANNULE' in upperConclusion or 'RETIRE' in upperConclusion:
             return "decision-pour-refus"
 
+def delete_csv_report_files():
+
+    # delete rubrics error file content
+    with open("matchRubricsError.csv", "w"):
+        pass
+
+    # delete document found file content
+    with open("documentfound.csv", "w"):
+        pass
+
+    # delete document open error
+    with open("documenterror.csv", "w"):
+        pass
+
+    # delete document not found file content
+    with open("documentnotfound.csv", "w"):
+        pass
+
 
 def convertToUnicode(string):
 
@@ -293,6 +311,39 @@ def convertToUnicode(string):
         except UnicodeDecodeError:
             import ipdb; ipdb.set_trace() # TODO REMOVE BREAKPOINT
     return data
+
+
+def safe_unicode(value, encoding='utf-8'):
+    """Converts a value to unicode, even it is already a unicode string.
+
+    #     >>> from Products.CMFPlone.utils import safe_unicode
+    #
+    #     >>> safe_unicode('spam')
+    #     u'spam'
+    #     >>> safe_unicode(u'spam')
+    #     u'spam'
+    #     >>> safe_unicode(u'spam'.encode('utf-8'))
+    #     u'spam'
+    #     >>> safe_unicode('\xc6\xb5')
+    #     u'\u01b5'
+    #     >>> safe_unicode(u'\xc6\xb5'.encode('iso-8859-1'))
+    #     u'\u01b5'
+    #     >>> safe_unicode('\xc6\xb5', encoding='ascii')
+    #     u'\u01b5'
+    #     >>> safe_unicode(1)
+    #     1
+    #     >>> print safe_unicode(None)
+    #     None
+    # """
+    if isinstance(value, unicode):
+        return value
+    elif isinstance(value, basestring):
+        try:
+            value = unicode(value, encoding)
+        except UnicodeDecodeError:
+            value = value.decode('utf-8', 'replace')
+    return value
+
 
 def get_point_and_digits(string):
 

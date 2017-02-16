@@ -10,7 +10,7 @@ OBJECTS_NESTING = [
             ('PARCEL', []),
             ('DEPOSIT EVENT', []),
             ('DECISION EVENT', []),
-            ('DOCUMENTS', []),
+            # ('DOCUMENTS', []),
         ],
     ),
 ]
@@ -295,18 +295,22 @@ FIELDS_MAPPINGS = {
         'factory': [DocumentsFactory],
 
         'mappers': {
-            DocumentTitleMapper: {
-                'from': ('CADDIV', 'CADSEC', 'CADNUM'),
-                'to': 'title',
-            },
-            DocumentIdMapper: {
-                'from': ('CADDIV', 'CADSEC', 'CADNUM'),
-                'to': 'id',
-            },
-            DocumentFileMapper: {
-                'from': ('CADDIV', 'CADSEC', 'CADNUM'),
-                'to': 'file',
-                    },
+            DocumentsMapper: {
+                    'from': ('CADDIV', 'CADSEC', 'CADNUM'),
+                    'to': 'file',
+            }
+            # DocumentTitleMapper: {
+            #     'from': ('CADDIV', 'CADSEC', 'CADNUM'),
+            #     'to': 'title',
+            # },
+            # DocumentIdMapper: {
+            #     'from': ('CADDIV', 'CADSEC', 'CADNUM'),
+            #     'to': 'id',
+            # },
+            # DocumentFileMapper: {
+            #     'from': ('CADDIV', 'CADSEC', 'CADNUM'),
+            #     'to': 'file',
+            #         },
         },
     },
 }
