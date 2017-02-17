@@ -10,7 +10,7 @@ OBJECTS_NESTING = [
             ('PARCEL', []),
             ('DEPOSIT EVENT', []),
             ('DECISION EVENT', []),
-            # ('DOCUMENTS', []),
+            ('DOCUMENTS', []),
         ],
     ),
 ]
@@ -295,7 +295,7 @@ FIELDS_MAPPINGS = {
         'factory': [DocumentsFactory],
 
         'mappers': {
-            DocumentsMapper: {
+            DocumentsMapper2: {
                     'from': ('CADDIV', 'CADSEC', 'CADNUM'),
                     'to': 'file',
             }

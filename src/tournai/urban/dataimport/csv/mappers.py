@@ -6,7 +6,7 @@ import datetime
 from tournai.urban.dataimport.csv.utils import get_state_from_licences_dates, get_date_from_licences_dates, \
     load_architects, load_geometers, load_notaries, load_parcellings, get_state_from_raw_conclusion, \
     get_decision_from_raw_conclusion, get_custom_event, convertToUnicode, get_point_and_digits, convertToAscii, \
-    delete_csv_report_files
+    delete_csv_report_files, path_insensitive
 from imio.urban.dataimport.config import IMPORT_FOLDER_PATH
 
 from imio.urban.dataimport.exceptions import NoObjectToCreateException
@@ -323,132 +323,72 @@ class DocumentTitleMapper(Mapper):
         return doc_id
 
 
-class DocumentsMapper(PostCreationMapper):
-    def map(self, line, plone_object):
-        if self.getData('CADDIV') and self.getData('CADSEC') and self.getData('CADNUM'):
-            div = self.getData('CADDIV')
-            sec = self.getData('CADSEC')
-            num = self.getData('CADNUM')
-            documents_args = []
-            if '?' in div or '?' in sec or '?' in num:
-                raise NoObjectToCreateException
+class DocumentsMapper2(Mapper):
+    def map(self, line):
+        licence = self.importer.current_containers_stack[-1]
+        documents_args = []
+        for parcel in licence.objectValues():
+            if parcel.portal_type == 'PortionOut':
+                if parcel.division and parcel.section and parcel.radical:
+                    for code, codeDivision in self.getValueMapping('division_map').items():
+                        if codeDivision == parcel.division:
+                            div = code
+                            if len(div) == 1:
+                                div = '0' + div
 
+                    file_name = div + parcel.section + parcel.radical + parcel.exposant + parcel.puissance + ".doc"
+                    document_path = div + "/" + file_name
+                    document_path = '{base}/documents/{rel_path}'.format(
+                        base=IMPORT_FOLDER_PATH,
+                        rel_path=document_path
+                    )
 
-            # division and section management
-            if len(div) == 1:
-                div = '0' + div
-            if len(sec) != 1:
-                sec = sec[0]
-
-            for parcel in plone_object.getParcels():
-
-                file_name = div + sec + parcel.radical + parcel.exposant + parcel.puissance + ".doc"
-
-                document_path = div + "/" + file_name
-                document_path = '{base}/documents/{rel_path}'.format(
-                    base=IMPORT_FOLDER_PATH,
-                    rel_path=document_path[14:].replace('\\', '/') + document_path
-                )
-
-                if os.path.isfile(document_path):
                     try:
-                        doc = open(document_path, 'rb')
-                        with open("documentfound.csv", "a") as file:
-                            file.write(document_path + "\n")
+                        path = path_insensitive(document_path)
+                        doc = open(path, 'rb')
+                        # with open("documentfound.csv", "a") as file:
+                        #     file.write(path + "\n")
+
+                    except:
+                        # print "COULD NOT FIND DOCUMENT {}".format(file_name)
+                        with open("documentnotfound.csv", "a") as file:
+                            file.write(path + "\n")
+                            continue
+
+                    doc_content = doc.read()
+                    doc.close()
+
+                    doc_args = {
+                        'portal_type': 'File',
+                        'id': normalizeString(safe_unicode(file_name)),
+                        'title': safe_unicode(file_name),
+                        'file': doc_content,
+                    }
+                    documents_args.append(doc_args)
+
+                    # if found, continue with 'underscore' sequence
+                    while True:
+                        file_name = file_name[0:len(file_name)-4] + "_.doc"
+                        document_path = document_path[0:len(document_path)-4] + "_.doc"
+                        try:
+                            path = path_insensitive(document_path)
+                            doc = open(path, 'rb')
+
+                        except:
+                               # no more _ sequence found : break the infinite loop
+                                break
                         doc_content = doc.read()
                         doc.close()
+
                         doc_args = {
                             'portal_type': 'File',
                             'id': normalizeString(safe_unicode(file_name)),
-                            # 'title': doc_name,
+                            'title': safe_unicode(file_name),
                             'file': doc_content,
                         }
                         documents_args.append(doc_args)
-                    except:
-                        # print "COULD NOT FIND DOCUMENT {}".format(document_path)
-                        with open("documenterror.csv", "a") as file:
-                            file.write(document_path + "\n")
-                        return
-                else:
-                    with open("documentnotfound.csv", "a") as file:
-                        file.write(document_path + "\n")
 
-            return documents_args
-        else:
-            return
-
-
-# class DocumentsMapper2(PostCreationMapper):
-#     def map(self, line, plone_object):
-#         licence = self.importer.current_containers_stack[-1]
-#
-#         if self.getData('CADDIV') and self.getData('CADSEC') and self.getData('CADNUM'):
-#             div = self.getData('CADDIV')
-#             sec = self.getData('CADSEC')
-#             num = self.getData('CADNUM')
-#             if '?' in div or '?' in sec or '?' in num:
-#                 return
-#
-#             # division and section management
-#             if len(div) == 1:
-#                 div = '0' + div
-#             if len(sec) != 1:
-#                 sec = sec[0]
-#
-#
-#             for index, parcel in plone_object.getParcels()[0]:
-#
-#                 file_name = div + sec + parcel.radical + parcel.exposant + parcel.puissance
-#
-#                 documents_args = []
-#                 # try:
-#                 #     doc_names = os.listdir(documents_path)
-#                 # except:
-#                 #     return documents_args
-#
-#                 try:
-#                     doc = open(file_name, 'rb')
-#                     with open("documentfound.csv", "a") as file:
-#                         file.write(file_name + "\n")
-#                 except:
-#                     # print "COULD NOT FIND DOCUMENT {}".format(file_name)
-#                     with open("documentnotfound.csv", "a") as file:
-#                         file.write(file_name + "\n")
-#
-#                 doc_content = doc.read()
-#                 doc.close()
-#
-#                 doc_args = {
-#                     'portal_type': 'File',
-#                     'id': normalizeString(safe_unicode(file_name)),
-#                     'title': doc_name,
-#                     'file': doc_content,
-#                 }
-#                 documents_args.append(doc_args)
-#
-#                 while True:
-#
-#                     try:
-#                         doc = open(file_name, 'rb')
-#                         with open("documentfound.csv", "a") as file:
-#                             file.write(file_name + "\n")
-#                     except:
-#                         # print "COULD NOT FIND DOCUMENT {}".format(file_name)
-#                         with open("documentnotfound.csv", "a") as file:
-#                             file.write(file_name + "\n")
-#
-#                     doc_content = doc.read()
-#                     doc.close()
-#
-#                     doc_args = {
-#                         'portal_type': 'File',
-#                         'id': normalizeString(safe_unicode(file_name)),
-#                         'title': doc_name,
-#                         'file': doc_content,
-#                     }
-#                     documents_args.append(doc_args)
-#
-#         return documents_args
+        return documents_args
 
 
 class FolderZoneTableMapper(Mapper):
