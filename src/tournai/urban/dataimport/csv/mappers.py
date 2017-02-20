@@ -330,53 +330,33 @@ class DocumentsMapper2(Mapper):
         for parcel in licence.objectValues():
             if parcel.portal_type == 'PortionOut':
                 if parcel.division and parcel.section and parcel.radical:
+                    div = None
                     for code, codeDivision in self.getValueMapping('division_map').items():
                         if codeDivision == parcel.division:
                             div = code
                             if len(div) == 1:
                                 div = '0' + div
 
-                    file_name = div + parcel.section + parcel.radical + parcel.exposant + parcel.puissance + ".doc"
-                    document_path = div + "/" + file_name
-                    document_path = '{base}/documents/{rel_path}'.format(
-                        base=IMPORT_FOLDER_PATH,
-                        rel_path=document_path
-                    )
+                    if div:
+                        file_name = div + parcel.section + parcel.radical + parcel.exposant + parcel.puissance + ".doc"
+                        document_path = div + "/" + file_name
+                        document_path = '{base}/documents/{rel_path}'.format(
+                            base=IMPORT_FOLDER_PATH,
+                            rel_path=document_path
+                        )
 
-                    try:
-                        path = path_insensitive(document_path)
-                        doc = open(path, 'rb')
-                        # with open("documentfound.csv", "a") as file:
-                        #     file.write(path + "\n")
-
-                    except:
-                        # print "COULD NOT FIND DOCUMENT {}".format(file_name)
-                        with open("documentnotfound.csv", "a") as file:
-                            file.write(path + "\n")
-                            continue
-
-                    doc_content = doc.read()
-                    doc.close()
-
-                    doc_args = {
-                        'portal_type': 'File',
-                        'id': normalizeString(safe_unicode(file_name)),
-                        'title': safe_unicode(file_name),
-                        'file': doc_content,
-                    }
-                    documents_args.append(doc_args)
-
-                    # if found, continue with 'underscore' sequence
-                    while True:
-                        file_name = file_name[0:len(file_name)-4] + "_.doc"
-                        document_path = document_path[0:len(document_path)-4] + "_.doc"
                         try:
                             path = path_insensitive(document_path)
                             doc = open(path, 'rb')
+                            # with open("documentfound.csv", "a") as file:
+                            #     file.write(path + "\n")
 
                         except:
-                               # no more _ sequence found : break the infinite loop
-                                break
+                            # print "COULD NOT FIND DOCUMENT {}".format(file_name)
+                            with open("documentnotfound.csv", "a") as file:
+                                file.write(path + "\n")
+                                continue
+
                         doc_content = doc.read()
                         doc.close()
 
@@ -387,6 +367,28 @@ class DocumentsMapper2(Mapper):
                             'file': doc_content,
                         }
                         documents_args.append(doc_args)
+
+                        # if found, continue with 'underscore' sequence
+                        while True:
+                            file_name = file_name[0:len(file_name)-4] + "_.doc"
+                            document_path = document_path[0:len(document_path)-4] + "_.doc"
+                            try:
+                                path = path_insensitive(document_path)
+                                doc = open(path, 'rb')
+
+                            except:
+                                   # no more _ sequence found : break the infinite loop
+                                    break
+                            doc_content = doc.read()
+                            doc.close()
+
+                            doc_args = {
+                                'portal_type': 'File',
+                                'id': normalizeString(safe_unicode(file_name)),
+                                'title': safe_unicode(file_name),
+                                'file': doc_content,
+                            }
+                            documents_args.append(doc_args)
 
         return documents_args
 
