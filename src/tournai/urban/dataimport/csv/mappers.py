@@ -256,16 +256,23 @@ class FolderManagerMapper(Mapper):
         if foldermanagers_raw:
             for fm in foldermanagers_raw.split("/"):
                 fm = fm.strip()
-                fm_tosearch = self.getValueMapping('foldermanager_map')[fm.upper()]
-                if fm_tosearch:
-                    foldermanager = self.catalog(portal_type='FolderManager', Title=fm_tosearch)
-                    if len(foldermanager) == 1:
-                        foldermanagers.append(foldermanager[0].getObject().UID())
-                    elif len(foldermanager) == 0:
-                        self.logError(self, line, 'foldermanager not found',
-                                      {
-                                          'foldermanager': foldermanagers_raw,
-                                      })
+                fm_mapper = self.getValueMapping('foldermanager_map')
+                if fm in fm_mapper:
+                    fm_tosearch = self.getValueMapping('foldermanager_map')[fm.upper()]
+                    if fm_tosearch:
+                        foldermanager = self.catalog(portal_type='FolderManager', Title=fm_tosearch)
+                        if len(foldermanager) == 1:
+                            foldermanagers.append(foldermanager[0].getObject().UID())
+                        elif len(foldermanager) == 0:
+                            self.logError(self, line, 'foldermanager not found',
+                                          {
+                                              'foldermanager': foldermanagers_raw,
+                                          })
+                else:
+                    self.logError(self, line, 'foldermanager not found',
+                                  {
+                                      'foldermanager': foldermanagers_raw,
+                                  })
             if foldermanagers_raw == 'MV':
                 self.logError(self, line, 'internship found',
                               {
