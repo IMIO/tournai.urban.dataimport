@@ -6,7 +6,7 @@ import datetime
 from tournai.urban.dataimport.csv.utils import get_state_from_licences_dates, get_date_from_licences_dates, \
     load_architects, load_geometers, load_notaries, load_parcellings, get_state_from_raw_conclusion, \
     get_decision_from_raw_conclusion, get_custom_event, convertToUnicode, get_point_and_digits, convertToAscii, \
-    delete_csv_report_files, path_insensitive
+    delete_csv_report_files, path_insensitive, create_notary_letters
 from imio.urban.dataimport.config import IMPORT_FOLDER_PATH
 
 from imio.urban.dataimport.exceptions import NoObjectToCreateException
@@ -53,6 +53,7 @@ class IdMapper(Mapper):
         # load_geometers()
         # load_notaries()
         # load_parcellings()
+        create_notary_letters()
         delete_csv_report_files()
 
     def mapId(self, line):
@@ -235,9 +236,10 @@ class ArchitectMapper(PostCreationMapper):
         noisy_words = ['monsieur', 'madame', 'architecte', '&', ',', '.', 'or', 'mr', 'mme', '/']
         name_keywords = [word.lower() for word in fullname if word.lower() not in noisy_words]
         architects = self.catalog(portal_type='Architect', Title=name_keywords)
-        if len(architects) == 0:
-            Utils.createArchitect(archi_name)
-            architects = self.catalog(portal_type='Architect', Title=name_keywords)
+        # link only existing architects
+        # if len(architects) == 0:
+        #     Utils.createArchitect(archi_name)
+        #     architects = self.catalog(portal_type='Architect', Title=name_keywords)
         if len(architects) == 1:
             return architects[0].getObject()
         self.logError(self, line, 'No architects found or too much architects found',

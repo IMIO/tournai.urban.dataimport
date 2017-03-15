@@ -6,6 +6,7 @@ import os
 import unicodedata
 from plone.i18n.normalizer import idnormalizer
 from plone import api
+from Products.CMFPlone.utils import normalizeString
 
 from imio.urban.dataimport.config import IMPORT_FOLDER_PATH
 from imio.urban.dataimport.errors import NoPortalTypeError, IdentifierError
@@ -121,6 +122,63 @@ def load_notaries():
                                                     street='%s %s' % (notary[header_indexes['Adresse1']], notary[header_indexes['Adresse2']]),
                                                     zipcode=notary[header_indexes['Code_postal']],
                                                     city=notary[header_indexes['Ville']])
+
+
+def create_notary_letters():
+
+    cpt = 1
+    containerNotaryLetters = api.content.get(path='/urban/notaryletters')
+    for (dirpath, dirnames, filenames) in os.walk(IMPORT_FOLDER_PATH + '/documents'):
+        # print(root, dirs, files)
+        for notaryletter_file in filenames:
+            if '_' in notaryletter_file or '~' in notaryletter_file:
+                continue
+            print "PROCESSING NOTARY LETTER %i" % cpt
+            cpt += 1
+            if cpt > 61:
+                break
+
+            file_suffix = notaryletter_file.replace(".doc", "").replace(".docx", "")
+            id_notary_letter = idnormalizer.normalize('notary_letter%s' + file_suffix)
+
+            if not (id_notary_letter in containerNotaryLetters.objectIds()):
+                object_id = containerNotaryLetters.invokeFactory('NotaryLetter', id=id_notary_letter,
+                                                    title="ARCHIVE NOT " + file_suffix,
+                                                    reference="ARCHIVE NOT " + file_suffix)
+
+                if object_id:
+                    current_letter = api.content.get(path='/urban/notaryletters/' + id_notary_letter)
+                    attachment = read_file(os.path.abspath(os.path.join(dirpath, notaryletter_file)))
+                    api.content.create(container=current_letter, type='File', id=normalizeString("file"+ file_suffix), title=notaryletter_file, file=attachment)
+                    # current_letter.invokeFactory('File', id="file_" + id_notary_letter,
+                    #                                 title="ARCHIVE NOT" + file_suffix)
+
+                    file_name = notaryletter_file
+                    document_path = dirpath
+                    while True:
+                        file_name = file_name[0:len(file_name) - 4] + "_.doc"
+                        # document_path = document_path[0:len(document_path) - 4] + "_.doc"
+                        try:
+                            path = path_insensitive(document_path + "/" + file_name)
+                            doc = open(path, 'rb')
+
+                        except:
+                            # no more _ sequence found : break the infinite loop
+                            break
+                        doc_content = doc.read()
+                        doc.close()
+
+                        api.content.create(container=current_letter, type='File',
+                                           id=normalizeString("file" + file_name), title=file_name,
+                                           file=doc_content)
+
+def read_file(complete_path):
+
+    path = path_insensitive(complete_path)
+    doc = open(path, 'rb')
+    doc_content = doc.read()
+    doc.close()
+    return doc_content
 
 
 def load_parcellings():
