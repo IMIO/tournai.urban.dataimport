@@ -474,13 +474,15 @@ class EnvRubricsMapper(Mapper):
 
 class CompletionStateMapper(PostCreationMapper):
     def map(self, line, plone_object):
-        self.line = line
-        rawConclusion = self.getData('CONCLUSION')
-        transition = get_state_from_raw_conclusion(rawConclusion)
+        # self.line = line
+        # rawConclusion = self.getData('CONCLUSION')
+        # transition = get_state_from_raw_conclusion(rawConclusion)
+        #
+        # if transition:
+        #     api.content.transition(plone_object, transition)
+        #     # api.content.transition(plone_object, 'nonapplicable')
 
-        if transition:
-            api.content.transition(plone_object, transition)
-            # api.content.transition(plone_object, 'nonapplicable')
+        api.content.transition(plone_object, 'accept')
 
 
 class ErrorsMapper(FinalMapper):

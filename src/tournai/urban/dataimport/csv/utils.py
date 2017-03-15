@@ -149,7 +149,7 @@ def create_notary_letters():
                 if object_id:
                     current_letter = api.content.get(path='/urban/notaryletters/' + id_notary_letter)
                     attachment = read_file(os.path.abspath(os.path.join(dirpath, notaryletter_file)))
-                    api.content.create(container=current_letter, type='File', id=normalizeString("file"+ file_suffix), title=notaryletter_file, file=attachment)
+                    api.content.create(container=current_letter, type='File', id=idnormalizer.normalize("file"+ file_suffix), title=notaryletter_file, file=attachment)
                     # current_letter.invokeFactory('File', id="file_" + id_notary_letter,
                     #                                 title="ARCHIVE NOT" + file_suffix)
 
@@ -169,7 +169,7 @@ def create_notary_letters():
                         doc.close()
 
                         api.content.create(container=current_letter, type='File',
-                                           id=normalizeString("file" + file_name), title=file_name,
+                                           id=idnormalizer.normalize("file" + file_name), title=file_name,
                                            file=doc_content)
 
 def read_file(complete_path):
