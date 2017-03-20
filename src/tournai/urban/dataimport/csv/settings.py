@@ -25,7 +25,7 @@ class TournaiCsvImporterFromImportSettings(CSVImporterFromImportSettings):
         settings = super(TournaiCsvImporterFromImportSettings, self).get_importer_settings()
         db_settings = {
             'key_column': 'id',
-            'csv_filename': 'tournai_20170222.csv',
+            'csv_filename': 'tournai_20170317.csv',
         }
 
         settings.update(db_settings)

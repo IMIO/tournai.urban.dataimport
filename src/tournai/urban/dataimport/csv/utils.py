@@ -12,6 +12,7 @@ from imio.urban.dataimport.config import IMPORT_FOLDER_PATH
 from imio.urban.dataimport.errors import NoPortalTypeError, IdentifierError
 from imio.urban.dataimport.utils import identify_parcel_abbreviations, parse_cadastral_reference, CadastralReference, \
     guess_cadastral_reference
+from tournai.urban.dataimport.csv import valuesmapping
 
 
 def get_state_from_licences_dates(date_licence, date_refused, date_licence_recourse, date_refused_recourse):
@@ -124,7 +125,7 @@ def load_notaries():
                                                     city=notary[header_indexes['Ville']])
 
 
-def create_notary_letters():
+def create_notary_letters(context):
 
     cpt = 1
     containerNotaryLetters = api.content.get(path='/urban/notaryletters')
@@ -135,10 +136,8 @@ def create_notary_letters():
                 continue
             print "PROCESSING NOTARY LETTER %i" % cpt
             cpt += 1
-            if cpt > 61:
-                break
 
-            file_suffix = notaryletter_file.replace(".doc", "").replace(".docx", "")
+            file_suffix = notaryletter_file.replace(".doc", "").replace(".docx", "").replace(".DOC", "")
             id_notary_letter = idnormalizer.normalize('notary_letter%s' + file_suffix)
 
             if not (id_notary_letter in containerNotaryLetters.objectIds()):
@@ -153,11 +152,12 @@ def create_notary_letters():
                     # current_letter.invokeFactory('File', id="file_" + id_notary_letter,
                     #                                 title="ARCHIVE NOT" + file_suffix)
 
+                    parcels = get_parcels_from_filename(file_suffix, current_letter, context)
+
                     file_name = notaryletter_file
                     document_path = dirpath
                     while True:
                         file_name = file_name[0:len(file_name) - 4] + "_.doc"
-                        # document_path = document_path[0:len(document_path) - 4] + "_.doc"
                         try:
                             path = path_insensitive(document_path + "/" + file_name)
                             doc = open(path, 'rb')
@@ -179,6 +179,70 @@ def read_file(complete_path):
     doc_content = doc.read()
     doc.close()
     return doc_content
+
+
+def split_text(s):
+    from itertools import groupby
+    for k,g in groupby(s, str.isalpha):
+        yield ''.join(list(g))
+
+
+def get_parcels_from_filename(file_name, container, context):
+
+    file_name = file_name.replace(" ", "")
+    if file_name:
+        split_name = list(split_text(file_name))
+        division = split_name[0]
+        division_map = valuesmapping.VALUES_MAPS.get('division_map')
+        if '0' == division[0]:
+            division = division[1]
+        division_code = division_map.get(division)
+        section = split_name[1]
+        num = ''
+        for x in split_name[2:]:
+            num += x
+        print(division_code, section, num)
+        if not division_code or not section or not division:
+            return []
+        abbreviations = identify_parcel_abbreviations(num)
+        base_reference = parse_cadastral_reference(division_code + section + abbreviations[0])
+        base_reference = CadastralReference(*base_reference)
+
+        parcels = [base_reference]
+        for abbreviation in abbreviations[1:]:
+            new_parcel = guess_cadastral_reference(base_reference, abbreviation)
+            parcels.append(new_parcel)
+
+        for parcel in parcels:
+            create_parcel_in_notary_letter(parcel, container, context)
+
+
+def create_parcel_in_notary_letter(parcel, container, context):
+
+    searchview = context.site.restrictedTraverse('searchparcels')
+    # need to trick the search browser view about the args in its request
+    parcel_args = parcel.to_dict()
+    parcel_args.pop('partie')
+
+    for k, v in parcel_args.iteritems():
+        searchview.context.REQUEST[k] = v
+    # check if we can find a parcel in the db cadastre with these infos
+    found = searchview.findParcel(**parcel_args)
+    if not found:
+        found = searchview.findParcel(browseoldparcels=True, **parcel_args)
+
+    if len(found) == 1 and parcel.has_same_attribute_values(found[0]):
+        parcel_args['divisionCode'] = parcel_args['division']
+        parcel_args['isOfficialParcel'] = True
+    else:
+        # self.logError(self, line, 'Too much parcels found or not enough parcels found',
+        #               {'args': parcel_args, 'search result': len(found)})
+        parcel_args['isOfficialParcel'] = False
+
+    parcel_args['id'] = parcel.id
+    parcel_args['partie'] = parcel.partie
+
+    object_id = api.content.create(container, type='PortionOut', **parcel_args)
 
 
 def load_parcellings():
