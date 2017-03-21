@@ -197,17 +197,30 @@ def get_parcels_from_filename(file_name, container, context):
         if '0' == division[0]:
             division = division[1]
         division_code = division_map.get(division)
+        if not division_code:
+            section = ''
+            num = ''
+            with open("notaryLettersMatchParcelsError.csv", "a") as file:
+                file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
+            return []
         section = split_name[1]
         num = ''
         for x in split_name[2:]:
             num += x
         print(division_code, section, num)
-        if not division_code or not section or not division:
+        if not division_code or not section or not division or not num:
+            with open("notaryLettersMatchParcelsError.csv", "a") as file:
+                file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
             return []
         abbreviations = identify_parcel_abbreviations(num)
+        if not abbreviations:
+            with open("notaryLettersMatchParcelsError.csv", "a") as file:
+                file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
         base_reference = parse_cadastral_reference(division_code + section + abbreviations[0])
         base_reference = CadastralReference(*base_reference)
-
+        if not base_reference:
+            with open("notaryLettersMatchParcelsError.csv", "a") as file:
+                file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
         parcels = [base_reference]
         for abbreviation in abbreviations[1:]:
             new_parcel = guess_cadastral_reference(base_reference, abbreviation)
@@ -242,7 +255,13 @@ def create_parcel_in_notary_letter(parcel, container, context):
     parcel_args['id'] = parcel.id
     parcel_args['partie'] = parcel.partie
 
-    object_id = api.content.create(container, type='PortionOut', **parcel_args)
+    if not (parcel_args['id'] in container.objectIds()):
+        object_id = api.content.create(container, type='PortionOut', **parcel_args)
+    else:
+        print('%s dans %s' %(parcel_args['id'], container.objectIds()))
+        # import ipdb; ipdb.set_trace() # TODO REMOVE BREAKPOINT
+        # with open("id.csv", "a") as file:
+            # file.write("id exists : %s" (%parcel_args['id'] + "," + column2value + "\n")
 
 
 def load_parcellings():
@@ -406,6 +425,10 @@ def delete_csv_report_files():
 
     # delete rubrics error file content
     with open("matchRubricsError.csv", "w"):
+        pass
+
+    # delete notary letter parcel unmatched file content
+    with open("notaryLettersMatchParcelsError.csv", "w"):
         pass
 
     # delete document found file content
