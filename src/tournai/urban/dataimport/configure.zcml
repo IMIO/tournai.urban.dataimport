@@ -14,6 +14,7 @@
     <!-- Include configuration for dependencies listed in setup.py -->
     <includeDependencies package="." />
     <include package=".architects" />
+    <include package=".notaryletters" />
     <include package=".notaries" />
     <include package=".parcellings" />
     <include package=".csv" />

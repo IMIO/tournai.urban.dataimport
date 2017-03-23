@@ -125,7 +125,7 @@ def load_notaries():
                                                     city=notary[header_indexes['Ville']])
 
 
-def create_notary_letters(context):
+def create_notary_letters():
 
     cpt = 1
     containerNotaryLetters = api.content.get(path='/urban/notaryletters')
@@ -137,6 +137,8 @@ def create_notary_letters(context):
             print "PROCESSING NOTARY LETTER %i" % cpt
             cpt += 1
 
+            # if cpt > 10:
+            #     break
             file_suffix = notaryletter_file.replace(".doc", "").replace(".docx", "").replace(".DOC", "")
             id_notary_letter = idnormalizer.normalize('notary_letter%s' + file_suffix)
 
@@ -152,7 +154,7 @@ def create_notary_letters(context):
                     # current_letter.invokeFactory('File', id="file_" + id_notary_letter,
                     #                                 title="ARCHIVE NOT" + file_suffix)
 
-                    parcels = get_parcels_from_filename(file_suffix, current_letter, context)
+                    parcels = get_parcels_from_filename(file_suffix, current_letter)
 
                     file_name = notaryletter_file
                     document_path = dirpath
@@ -187,14 +189,14 @@ def split_text(s):
         yield ''.join(list(g))
 
 
-def get_parcels_from_filename(file_name, container, context):
+def get_parcels_from_filename(file_name, container):
 
     file_name = file_name.replace(" ", "")
     if file_name:
         split_name = list(split_text(file_name))
         division = split_name[0]
         division_map = valuesmapping.VALUES_MAPS.get('division_map')
-        if '0' == division[0]:
+        if  '0' == division[0] and len(division) > 1:
             division = division[1]
         division_code = division_map.get(division)
         if not division_code:
@@ -203,36 +205,41 @@ def get_parcels_from_filename(file_name, container, context):
             with open("notaryLettersMatchParcelsError.csv", "a") as file:
                 file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
             return []
-        section = split_name[1]
+        if len(split_name) > 1:
+            section = split_name[1].upper()
         num = ''
-        for x in split_name[2:]:
-            num += x
-        print(division_code, section, num)
-        if not division_code or not section or not division or not num:
-            with open("notaryLettersMatchParcelsError.csv", "a") as file:
-                file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
+        if  len(split_name) >= 2:
+            for x in split_name[2:]:
+                num += x
+            print(division_code, section, num)
+            if not division_code or not section or not division or not num:
+                with open("notaryLettersMatchParcelsError.csv", "a") as file:
+                    file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
+                return []
+            abbreviations = identify_parcel_abbreviations(num)
+            if not abbreviations:
+                with open("notaryLettersMatchParcelsError.csv", "a") as file:
+                    file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
+            base_reference = parse_cadastral_reference(division_code + section + abbreviations[0])
+            base_reference = CadastralReference(*base_reference)
+            if not base_reference:
+                with open("notaryLettersMatchParcelsError.csv", "a") as file:
+                    file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
+            parcels = [base_reference]
+            for abbreviation in abbreviations[1:]:
+                new_parcel = guess_cadastral_reference(base_reference, abbreviation)
+                parcels.append(new_parcel)
+
+            for parcel in parcels:
+                create_parcel_in_notary_letter(parcel, container)
+        else:
             return []
-        abbreviations = identify_parcel_abbreviations(num)
-        if not abbreviations:
-            with open("notaryLettersMatchParcelsError.csv", "a") as file:
-                file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
-        base_reference = parse_cadastral_reference(division_code + section + abbreviations[0])
-        base_reference = CadastralReference(*base_reference)
-        if not base_reference:
-            with open("notaryLettersMatchParcelsError.csv", "a") as file:
-                file.write(file_name + ", division(%s) section(%s) num(%s)" %(division, section, num) + "\n")
-        parcels = [base_reference]
-        for abbreviation in abbreviations[1:]:
-            new_parcel = guess_cadastral_reference(base_reference, abbreviation)
-            parcels.append(new_parcel)
-
-        for parcel in parcels:
-            create_parcel_in_notary_letter(parcel, container, context)
 
 
-def create_parcel_in_notary_letter(parcel, container, context):
+def create_parcel_in_notary_letter(parcel, container):
 
-    searchview = context.site.restrictedTraverse('searchparcels')
+    site = api.portal.getSite()
+    searchview = site.restrictedTraverse('searchparcels')
     # need to trick the search browser view about the args in its request
     parcel_args = parcel.to_dict()
     parcel_args.pop('partie')
@@ -257,11 +264,12 @@ def create_parcel_in_notary_letter(parcel, container, context):
 
     if not (parcel_args['id'] in container.objectIds()):
         object_id = api.content.create(container, type='PortionOut', **parcel_args)
+        # with open("notaryletters_new_id.csv", "a") as file:
+        #     file.write("new id : %s, %s \n" % (parcel_args['id'] , container))
     else:
         print('%s dans %s' %(parcel_args['id'], container.objectIds()))
-        # import ipdb; ipdb.set_trace() # TODO REMOVE BREAKPOINT
-        # with open("id.csv", "a") as file:
-            # file.write("id exists : %s" (%parcel_args['id'] + "," + column2value + "\n")
+        with open("notaryletters_id_already_exists.csv", "a") as file:
+            file.write("id already exists : %s, %s \n" % (parcel_args['id'] , container))
 
 
 def load_parcellings():
@@ -442,6 +450,15 @@ def delete_csv_report_files():
     # delete document not found file content
     with open("documentnotfound.csv", "w"):
         pass
+
+    # delete notary letters already id exists file content
+        with open("notaryletters_id_already_exists.csv", "w"):
+            pass
+
+    # delete notary letters new id file content
+            with open("notaryletters_new_id.csv", "w"):
+                pass
+
 
 
 def convertToUnicode(string):

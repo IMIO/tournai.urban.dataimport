@@ -53,7 +53,7 @@ class IdMapper(Mapper):
         # load_geometers()
         # load_notaries()
         # load_parcellings()
-        create_notary_letters(self)
+        # create_notary_letters(self)
         delete_csv_report_files()
 
     def mapId(self, line):
